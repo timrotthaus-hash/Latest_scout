@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scout AI – Anti-FOMO Local Event Discovery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(22, 29, 47, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-violet: #8b5cf6;
+      --accent-cyan: #06b6d4;
+      --accent-pink: #ec4899;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --gradient-brand: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #06b6d4 100%);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image:
+        radial-gradient(circle at 15% 15%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.12) 0%, transparent 40%);
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 1.25rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(11, 15, 25, 0.85);
+    }
+
+    .brand { display: flex; align-items: center; gap: 0.75rem; }
+
+    .brand-logo {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: var(--gradient-brand);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.25rem;
+      color: white; box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    }
+
+    .brand-title {
+      font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .brand-tagline {
+      font-size: 0.75rem; color: var(--accent-cyan); font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+
+    /* Search bar */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 0.4rem 0.4rem 0.4rem 1rem;
+      flex: 1;
+      min-width: 260px;
+      max-width: 480px;
+    }
+
+    .search-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.95rem;
+      padding: 0.4rem 0;
+    }
+
+    .search-bar input::placeholder { color: var(--text-muted); }
+
+    .icon-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .icon-btn:hover { color: var(--accent-cyan); border-color: rgba(6,182,212,0.4); }
+
+    .btn-search {
+      background: var(--gradient-brand);
+      border: none;
+      color: white;
+      font-weight: 700;
+      padding: 0.55rem 1.1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex; align-items: center; gap: 0.4rem;
+      white-space: nowrap;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      width: 100%;
+      flex: 1;
+    }
+
+    .feed-header { text-align: center; margin-bottom: 1.5rem; }
+
+    .feed-header h2 { font-family: 'Outfit', sans-serif; font-size: 1.9rem; margin-bottom: 0.4rem; }
+
+    .badge-signal {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      color: var(--accent-cyan);
+      padding: 0.25rem 0.75rem;
+      border-radius: 50px;
+      font-size: 0.8rem; font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .subtext { color: var(--text-muted); max-width: 640px; margin: 0 auto; font-size: 0.95rem; }
+
+    /* Category filter chips */
+    .filter-row {
+      display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center;
+      margin: 1.5rem 0 2rem;
+    }
+
+    .chip {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 0.4rem 0.9rem;
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .chip.active {
+      background: rgba(139, 92, 246, 0.2);
+      color: #fff;
+      border-color: rgba(139, 92, 246, 0.5);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.75rem;
+      justify-content: center;
+    }
+
+    .event-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .event-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(139, 92, 246, 0.4);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-banner {
+      height: 110px;
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-banner i { width: 40px; height: 40px; color: rgba(255,255,255,0.85); }
+
+    .match-badge {
+      position: absolute; top: 12px; right: 12px;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff; font-size: 0.72rem; font-weight: 700;
+      padding: 4px 10px; border-radius: 50px;
+      backdrop-filter: blur(6px);
+    }
+
+    .category-tag {
+      position: absolute; top: 12px; left: 12px;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff; font-size: 0.72rem; font-weight: 700;
+      padding: 4px 10px; border-radius: 50px;
+      backdrop-filter: blur(6px);
+      text-transform: capitalize;
+    }
+
+    .card-content { padding: 1.25rem 1.4rem 1.5rem; display: flex; flex-direction: column; gap: 0.85rem; flex: 1; }
+
+    .event-title { font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; line-height: 1.3; }
+
+    .event-meta { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; color: var(--text-muted); }
+    .meta-item { display: flex; align-items: center; gap: 0.5rem; }
+    .meta-item i { width: 15px; height: 15px; flex-shrink: 0; }
+
+    .ai-hook-box {
+      background: rgba(139, 92, 246, 0.08);
+      border-left: 3px solid var(--accent-violet);
+      padding: 0.6rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #e0d9fb;
+      line-height: 1.45;
+    }
+    .ai-hook-box strong { color: #c4b5fd; }
+
+    .card-actions { display: flex; gap: 0.6rem; margin-top: auto; }
+
+    .btn {
+      flex: 1;
+      border: none;
+      padding: 0.6rem;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    .btn-primary { background: var(--gradient-brand); color: white; }
+    .btn-secondary { background: rgba(255,255,255,0.06); color: var(--text-main); border: 1px solid var(--card-border); }
+    .btn i { width: 15px; height: 15px; }
+
+    /* States */
+    .state-box {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      color: var(--text-muted);
+    }
+    .state-box i { width: 40px; height: 40px; margin-bottom: 1rem; color: var(--accent-violet); }
+
+    .skeleton {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      height: 320px;
+      position: relative;
+      overflow: hidden;
+    }
+    .skeleton::after {
+      content: "";
+      position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 640px) {
+      header { padding: 1rem; }
+      .search-bar { min-width: 100%; order: 3; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div>
+        <div class="brand-title">Scout AI</div>
+        <div class="brand-tagline">Anti-FOMO Event Discovery</div>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <i data-lucide="map-pin" style="width:18px;height:18px;color:var(--text-muted);"></i>
+      <input id="city-input" type="text" placeholder="Stadt eingeben, z. B. Düsseldorf" value="Düsseldorf" />
+      <button class="icon-btn" id="geo-btn" title="Meinen Standort nutzen">
+        <i data-lucide="locate-fixed"></i>
+      </button>
+    </div>
+
+    <button class="btn-search" id="search-btn">
+      <i data-lucide="search"></i> Events finden
+    </button>
+  </header>
+
+  <div class="container">
+    <section id="view-feed">
+      <div class="feed-header">
+        <div class="badge-signal">
+          <i data-lucide="shield-check"></i> Signal statt Rauschen
+        </div>
+        <h2 id="feed-title">Events werden aus dem Web geladen …</h2>
+        <p class="subtext" id="feed-subtext">Scout AI durchsucht live das Internet nach echten Events in deiner Stadt.</p>
+      </div>
+
+      <div class="filter-row" id="filter-row" style="display:none;"></div>
+
+      <div class="card-grid" id="card-grid"></div>
+    </section>
+  </div>
+
+  <footer>Scout AI · Events werden live per KI-Websuche ermittelt und können Fehler enthalten – bitte Details über die Quelle prüfen.</footer>
+
+  <script>
+    lucide.createIcons();
+
+    const CATEGORY_META = {
+      gastro:    { label: 'Gastro',    color: '#f59e0b', gradient: 'linear-gradient(135deg,#f59e0b,#ef4444)', icon: 'utensils' },
+      party:     { label: 'Party',     color: '#8b5cf6', gradient: 'linear-gradient(135deg,#8b5cf6,#ec4899)', icon: 'party-popper' },
+      culture:   { label: 'Kultur',    color: '#06b6d4', gradient: 'linear-gradient(135deg,#06b6d4,#3b82f6)', icon: 'palette' },
+      community: { label: 'Community', color: '#34d399', gradient: 'linear-gradient(135deg,#34d399,#06b6d4)', icon: 'users' },
+      tech_talk: { label: 'Tech',      color: '#f472b6', gradient: 'linear-gradient(135deg,#f472b6,#8b5cf6)', icon: 'cpu' },
+      other:     { label: 'Sonstiges', color: '#9ca3af', gradient: 'linear-gradient(135deg,#64748b,#334155)', icon: 'sparkles' },
+    };
+
+    let allEvents = [];
+    let activeCategory = 'all';
+
+    const cityInput = document.getElementById('city-input');
+    const searchBtn = document.getElementById('search-btn');
+    const geoBtn = document.getElementById('geo-btn');
+    const grid = document.getElementById('card-grid');
+    const filterRow = document.getElementById('filter-row');
+    const feedTitle = document.getElementById('feed-title');
+    const feedSubtext = document.getElementById('feed-subtext');
+
+    function renderSkeletons(n = 6) {
+      grid.innerHTML = '';
+      filterRow.style.display = 'none';
+      for (let i = 0; i < n; i++) {
+        const d = document.createElement('div');
+        d.className = 'skeleton';
+        grid.appendChild(d);
+      }
+    }
+
+    function renderState(iconName, title, text) {
+      grid.innerHTML = `
+        <div class="state-box" style="grid-column: 1 / -1;">
+          <i data-lucide="${iconName}"></i>
+          <h3 style="color:var(--text-main); margin-bottom:0.4rem;">${title}</h3>
+          <p>${text}</p>
+        </div>`;
+      lucide.createIcons();
+    }
+
+    function formatDate(iso) {
+      try {
+        const d = new Date(iso);
+        return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' }) +
+          ' · ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return iso;
+      }
+    }
+
+    function buildFilters() {
+      const cats = ['all', ...new Set(allEvents.map(e => e.category).filter(Boolean))];
+      filterRow.innerHTML = '';
+      filterRow.style.display = 'flex';
+      cats.forEach(cat => {
+        const meta = CATEGORY_META[cat];
+        const label = cat === 'all' ? 'Alle' : (meta ? meta.label : cat);
+        const chip = document.createElement('button');
+        chip.className = 'chip' + (cat === activeCategory ? ' active' : '');
+        chip.textContent = label;
+        chip.onclick = () => { activeCategory = cat; buildFilters(); renderCards(); };
+        filterRow.appendChild(chip);
+      });
+    }
+
+    function renderCards() {
+      const filtered = activeCategory === 'all' ? allEvents : allEvents.filter(e => e.category === activeCategory);
+      if (filtered.length === 0) {
+        renderState('search-x', 'Keine Events in dieser Kategorie', 'Versuch eine andere Kategorie oder Stadt.');
+        return;
+      }
+      grid.innerHTML = '';
+      filtered
+        .slice()
+        .sort((a, b) => (b.fomo_score || 0) - (a.fomo_score || 0))
+        .forEach(ev => {
+          const meta = CATEGORY_META[ev.category] || CATEGORY_META.other;
+          const card = document.createElement('div');
+          card.className = 'event-card';
+          card.innerHTML = `
+            <div class="card-banner" style="background:${meta.gradient};">
+              <i data-lucide="${meta.icon}"></i>
+              ${ev.fomo_score ? `<div class="match-badge">FOMO ${ev.fomo_score}/10</div>` : ''}
+              <div class="category-tag">${meta.label}</div>
+            </div>
+            <div class="card-content">
+              <h3 class="event-title">${escapeHtml(ev.title || 'Event')}</h3>
+              <div class="event-meta">
+                ${ev.start_time ? `<div class="meta-item"><i data-lucide="calendar"></i> ${formatDate(ev.start_time)}</div>` : ''}
+                ${ev.venue_name || ev.address ? `<div class="meta-item"><i data-lucide="map-pin"></i> ${escapeHtml(ev.venue_name || ev.address)}</div>` : ''}
+                <div class="meta-item"><i data-lucide="ticket"></i> ${ev.is_free ? 'Kostenlos' : escapeHtml(ev.price_descriptor || 'Preis unbekannt')}</div>
+              </div>
+              ${ev.ai_hook ? `<div class="ai-hook-box"><strong>Anti-FOMO Hook:</strong> ${escapeHtml(ev.ai_hook)}</div>` : (ev.description ? `<div class="ai-hook-box">${escapeHtml(ev.description)}</div>` : '')}
+              <div class="card-actions">
+                ${ev.latitude && ev.longitude ? `<a class="btn btn-primary" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${ev.latitude},${ev.longitude}"><i data-lucide="navigation"></i> Route</a>` : ''}
+                ${ev.source_url ? `<a class="btn btn-secondary" target="_blank" href="${ev.source_url}"><i data-lucide="external-link"></i> Quelle</a>` : ''}
+              </div>
+            </div>`;
+          grid.appendChild(card);
+        });
+      lucide.createIcons();
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str ?? '';
+      return div.innerHTML;
+    }
+
+    async function loadEvents(city) {
+      renderSkeletons();
+      feedTitle.textContent = `Suche echte Events in ${city} …`;
+      feedSubtext.textContent = 'Scout AI durchsucht gerade live das Internet – das kann 10–20 Sekunden dauern.';
+
+      try {
+        const res = await fetch(`/api/events?city=${encodeURIComponent(city)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          renderState('alert-triangle', 'Konnte keine Events laden', data.error + (data.hint ? ' — ' + data.hint : ''));
+          feedTitle.textContent = `Events in ${city}`;
+          feedSubtext.textContent = 'Es gab ein Problem beim Abruf.';
+          return;
+        }
+
+        allEvents = data.events || [];
+        activeCategory = 'all';
+
+        if (allEvents.length === 0) {
+          renderState('search-x', 'Keine Events gefunden', `Für ${city} konnten gerade keine echten Events gefunden werden. Versuch es später erneut oder mit einer anderen Stadt.`);
+          feedTitle.textContent = `Events in ${city}`;
+          feedSubtext.textContent = 'Keine Treffer.';
+          return;
+        }
+
+        feedTitle.textContent = `Deine Ausgewählten Highlights in ${city}`;
+        feedSubtext.textContent = `Scout AI hat live im Web gesucht und ${allEvents.length} relevante Events gefunden.`;
+        buildFilters();
+        renderCards();
+      } catch (err) {
+        renderState('wifi-off', 'Verbindung fehlgeschlagen', 'Die API konnte nicht erreicht werden. Prüfe deine Internetverbindung oder versuch es erneut.');
+      }
+    }
+
+    searchBtn.addEventListener('click', () => {
+      const city = cityInput.value.trim();
+      if (city) loadEvents(city);
+    });
+
+    cityInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchBtn.click();
+    });
+
+    geoBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) return;
+      geoBtn.innerHTML = '<i data-lucide="loader-2" style="animation:spin 1s linear infinite;"></i>';
+      lucide.createIcons();
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await res.json();
+          const city = data.address.city || data.address.town || data.address.village || data.address.county;
+          if (city) {
+            cityInput.value = city;
+            loadEvents(city);
+          }
+        } catch (e) {
+          console.error('Reverse geocoding failed', e);
+        } finally {
+          geoBtn.innerHTML = '<i data-lucide="locate-fixed"></i>';
+          lucide.createIcons();
+        }
+      }, () => {
+        geoBtn.innerHTML = '<i data-lucide="locate-fixed"></i>';
+        lucide.createIcons();
+      });
+    });
+
+    // Initial load
+    loadEvents(cityInput.value.trim());
+  </script>
+</body>
+</html>

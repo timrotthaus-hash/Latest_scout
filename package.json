@@ -1,0 +1,7 @@
+{
+  "name": "scout-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scout AI – Anti-FOMO local event discovery. Static frontend + Vercel serverless API that pulls real events for any city via Anthropic web search."
+}
